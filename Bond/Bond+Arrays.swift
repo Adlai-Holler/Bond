@@ -41,8 +41,13 @@ public class ArrayBond<T>: Bond<Array<T>> {
   public var willUpdateListener: ((DynamicArray<T>, [Int]) -> Void)?
   public var didUpdateListener: ((DynamicArray<T>, [Int]) -> Void)?
 
+  // The array will replace all its content at once
   public var willResetListener: (DynamicArray<T> -> Void)?
   public var didResetListener: (DynamicArray<T> -> Void)?
+  
+  /// The array will begin a series of insert/remove/update mutations
+  public var willMutateListener: (DynamicArray<T> -> Void)?
+  public var didMutateListener: (DynamicArray<T> -> Void)?
   
   override public init() {
     super.init()
@@ -72,6 +77,32 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
   public typealias Generator = DynamicArrayGenerator<T>
   
   public let dynCount: Dynamic<Int>
+
+  /// how many active mutations are in progress?
+  public private(set) var mutationCount: Int = 0 {
+    didSet {
+      if mutationCount == 0 {
+        for closure in afterMutatingClosures {
+          closure(self)
+        }
+        afterMutatingClosures.removeAll(keepCapacity: false)
+      }
+    }
+  }
+  
+  private var afterMutatingClosures: Array<(DynamicArray -> Void)> = []
+  
+  /** if we're not mutating, runs immediately.
+  Otherwise runs as soon as all mutations
+  are applied and dispatched.
+  */
+  public func doAfterMutating(f: DynamicArray -> Void) {
+    if mutationCount == 0 {
+      f(self)
+    } else {
+      afterMutatingClosures.append(f)
+    }
+  }
   
   public override init(_ v: Array<T>) {
     dynCount = Dynamic(0)
@@ -124,7 +155,7 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
   }
   
   public func append(array: Array<T>) {
-	splice(array, atIndex: value.count)
+    splice(array, atIndex: value.count)
   }
   
   public func removeLast() -> T {
@@ -161,6 +192,8 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
   }
   
   public func removeAll(keepCapacity: Bool) {
+    if value.isEmpty { return }
+    
     let count = value.count
     let indices = Array(0..<count)
     dispatchWillRemove(indices)
@@ -190,57 +223,84 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
   }
   
   private func dispatchWillInsert(indices: [Int]) {
+    let firstMutation = mutationCount++ == 0
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
+        if firstMutation {
+          arrayBond.willMutateListener?(self)
+        }
         arrayBond.willInsertListener?(self, indices)
       }
     }
   }
   
   private func dispatchDidInsert(indices: [Int]) {
+    let lastMutation = mutationCount == 1
     if !indices.isEmpty {
       dynCount.value = count
     }
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
         arrayBond.didInsertListener?(self, indices)
+        if lastMutation {
+          arrayBond.didMutateListener?(self)
+        }
       }
     }
+    mutationCount--
   }
   
   private func dispatchWillRemove(indices: [Int]) {
+    let firstMutation = mutationCount++ == 0
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
+        if firstMutation {
+          arrayBond.willMutateListener?(self)
+        }
         arrayBond.willRemoveListener?(self, indices)
       }
     }
   }
 
   private func dispatchDidRemove(indices: [Int]) {
+    let lastMutation = mutationCount == 1
     if !indices.isEmpty {
       dynCount.value = count
     }
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
         arrayBond.didRemoveListener?(self, indices)
+        if lastMutation {
+          arrayBond.didMutateListener?(self)
+        }
       }
     }
+    mutationCount--
   }
   
   private func dispatchWillUpdate(indices: [Int]) {
+    let firstMutation = mutationCount++ == 0
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
+        if firstMutation {
+          arrayBond.willMutateListener?(self)
+        }
         arrayBond.willUpdateListener?(self, indices)
       }
     }
   }
   
   private func dispatchDidUpdate(indices: [Int]) {
+    let lastMutation = mutationCount == 1
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
         arrayBond.didUpdateListener?(self, indices)
+        if lastMutation {
+          arrayBond.didMutateListener?(self)
+        }
       }
     }
+    mutationCount--
   }
   
   private func dispatchWillReset() {

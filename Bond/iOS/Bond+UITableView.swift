@@ -187,11 +187,18 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
     self.tableView = tableView
     super.init()
     
+    self.willMutateListener = { [weak self] array in
+      self?.tableView?.beginUpdates()
+    }
+    
+    self.didMutateListener = { [weak self] array in
+      self?.tableView?.endUpdates()
+    }
+    
     self.didInsertListener = { [weak self] array, i in
       if let s = self {
         if let tableView: UITableView = self?.tableView {
           perform(animated: !disableAnimation) {
-            tableView.beginUpdates()
             tableView.insertSections(NSIndexSet(array: i), withRowAnimation: UITableViewRowAnimation.Automatic)
             
             for section in sorted(i, <) {
@@ -205,7 +212,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
               }
             }
             
-            tableView.endUpdates()
           }
         }
       }
@@ -215,7 +221,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
       if let s = self {
         if let tableView = s.tableView {
           perform(animated: !disableAnimation) {
-            tableView.beginUpdates()
             tableView.deleteSections(NSIndexSet(array: i), withRowAnimation: UITableViewRowAnimation.Automatic)
             for section in sorted(i, >) {
               s.sectionBonds[section].unbindAll()
@@ -226,7 +231,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
               }
             }
             
-            tableView.endUpdates()
           }
         }
       }
@@ -236,7 +240,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
       if let s = self {
         if let tableView = s.tableView {
           perform(animated: !disableAnimation) {
-            tableView.beginUpdates()
             tableView.reloadSections(NSIndexSet(array: i), withRowAnimation: UITableViewRowAnimation.Automatic)
 
             for section in i {
@@ -247,8 +250,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
               self?.sectionBonds[section].unbindAll()
               self?.sectionBonds[section] = sectionBond
             }
-            
-            tableView.endUpdates()
           }
         }
       }
@@ -265,22 +266,41 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
     bind(DynamicArray([dynamic]))
   }
   
+  /**
+    if we get re-bound while waiting for our previous array
+		to stop mutating, we need to know not to start observing our previous array
+  */
+  private var bindCount = 0
+  
   public override func bind(dynamic: Dynamic<Array<DynamicArray<UITableViewCell>>>, fire: Bool, strongly: Bool) {
-    super.bind(dynamic, fire: false, strongly: strongly)
+    bindCount++
     if let dynamic = dynamic as? DynamicArray<DynamicArray<UITableViewCell>> {
       
-      for section in 0..<dynamic.count {
-        let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: self.tableView, section: section, disableAnimation: disableAnimation)
-        let sectionDynamic = dynamic[section]
-        sectionDynamic.bindTo(sectionBond)
-        sectionBonds.append(sectionBond)
-      }
-      
+      /// reload data now to get the latest into table view
       dataSource = TableViewDynamicArrayDataSource(dynamic: dynamic)
       dataSource?.nextDataSource = self.nextDataSource
       tableView?.dataSource = dataSource
-      tableView?.reloadData()
+      self.tableView?.reloadData()
+      
+      let oldBindCount = self.bindCount
+      /// wait until array stops mutating before binding super and creating section bonds
+      dynamic.doAfterMutating { [weak self] dynamic in
+        if let strongSelf = self, tableView = strongSelf.tableView where strongSelf.bindCount == oldBindCount {
+          strongSelf.superBind(dynamic, fire: false, strongly: strongly)
+          for section in 0..<dynamic.count {
+            let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: tableView, section: section, disableAnimation: strongSelf.disableAnimation)
+            let sectionDynamic = dynamic[section]
+            sectionDynamic.bindTo(sectionBond)
+            strongSelf.sectionBonds.append(sectionBond)
+          }
+        }
+      }
     }
+  }
+  
+  // you can't call `super.` in a closure, so we use this to defer our super-binding until array stops mutating
+  final private func superBind(dynamic: Dynamic<Array<DynamicArray<UITableViewCell>>>, fire: Bool, strongly: Bool) {
+    super.bind(dynamic, fire: fire, strongly: strongly)
   }
   
   deinit {
