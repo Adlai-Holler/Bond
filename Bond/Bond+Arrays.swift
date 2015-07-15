@@ -110,11 +110,11 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
   }
   
   public var first: T? {
-    return value.first
+    return !isEmpty ? self[0] : nil
   }
   
   public var last: T? {
-    return value.last
+    return !isEmpty ? self[count-1] : nil
   }
   
   public func append(newElement: T) {
@@ -124,7 +124,7 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
   }
   
   public func append(array: Array<T>) {
-	splice(array, atIndex: value.count)
+    splice(array, atIndex: value.count)
   }
   
   public func removeLast() -> T {
@@ -482,7 +482,7 @@ private class DynamicArrayMapProxy<T, U>: DynamicArray<U> {
   
   override subscript(index: Int) -> U {
     get {
-        return mapf(sourceArray[index], index)
+      return mapf(sourceArray[index], index)
     }
     set(newObject) {
       fatalError("Modifying proxy array is not supported!")
@@ -522,6 +522,7 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
 
     bond.didInsertListener = { [unowned self] array, indices in
       var insertedIndices: [Int] = []
+      var insertedCounts: [Int] = []
       var pointers = self.pointers
       
       for idx in indices {
@@ -541,7 +542,7 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
       }
       
       if insertedIndices.count > 0 {
-       self.dispatchWillInsert(insertedIndices)
+        self.dispatchWillInsert(insertedIndices)
       }
       
       self.pointers = pointers
@@ -735,8 +736,145 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
   }
 }
 
-// MARK: Dynamic Array DeliverOn Proxy
 
+/**
+Note: Directly setting `DynamicArray.value` is not recommended. The array's count will not be updated and no array change notification will be emitted. Call `setArray:` instead.
+*/
+private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
+  private let sourceArray: DynamicArray<DynamicArray<T>>
+  
+  init(nestedSourceArray: DynamicArray<DynamicArray<T>>) {
+    self.sourceArray = nestedSourceArray
+    super.init([])
+    
+    var nestedBonds: [ArrayBond<T>] = [] // An ArrayBond for each section
+    let globalBond: ArrayBond<DynamicArray<T>>
+    globalBond = ArrayBond()
+    globalBond.bind(self.sourceArray, fire: false)
+    
+    let handleInsert = { [unowned self] (array: DynamicArray<DynamicArray<T>>, indices: [Int]) -> Void in
+      for (i, indice) in enumerate(sorted(indices, <)) {
+        let innerArray = array[indice]
+        
+        let bond = ArrayBond<T>()
+        bond.bind(innerArray)
+        nestedBonds.insert(bond, atIndex: indice)
+        
+        let handleReset = { (subArray: DynamicArray<T>) -> Void in
+          if let globalSectionIndex = find(nestedBonds, bond) {
+            let toSplice = (0..<subArray.count).map { index in subArray[index] }
+            self.splice(toSplice, atIndex: globalSectionIndex)
+          } else {
+            assertionFailure("Bond doesn't exist in our internal array.")
+          }
+        }
+        
+        handleReset(innerArray)
+        
+        bond.didInsertListener = { subArray, subIndices in
+          if let globalSectionIndex = find(nestedBonds, bond) {
+            let toSplice = sorted(subIndices, <).map { index in subArray[index] }
+            self.splice(toSplice, atIndex: globalSectionIndex)
+          } else {
+            assertionFailure("Bond doesn't exist in our internal array.")
+          }
+        }
+        bond.didRemoveListener = { subArray, subIndices in
+          if let globalSectionIndex = find(nestedBonds, bond) {
+            for i in sorted(subIndices, >) {
+              self.removeAtIndex(globalSectionIndex + i)
+            }
+          } else {
+            assertionFailure("Bond doesn't exist in our internal array.")
+          }
+        }
+        bond.didUpdateListener = { subArray, subIndices in
+          if let globalSectionIndex = find(nestedBonds, bond) {
+            for i in subIndices {
+              self[globalSectionIndex + i] = subArray[i]
+            }
+          } else {
+            assertionFailure("Bond doesn't exist in our internal array.")
+          }
+        }
+        bond.willResetListener = { subArray in
+          if let globalSectionIndex = find(nestedBonds, bond) {
+            for i in 0..<subArray.count {
+              self.removeAtIndex(globalSectionIndex)
+            }
+          } else {
+            assertionFailure("Bond doesn't exist in our internal array.")
+          }
+        }
+        
+        bond.didResetListener = handleReset
+      }
+    }
+    
+    let handleGlobalReset = { (array: DynamicArray<DynamicArray<T>>) -> Void in
+      nestedBonds = []
+      handleInsert(array, Array(0..<array.count))
+    }
+    
+    handleGlobalReset(nestedSourceArray)
+    
+    globalBond.didInsertListener = handleInsert
+    
+    globalBond.willRemoveListener = { [unowned self] array, indices in
+      
+      for indice in sorted(indices, >) {
+        let globalSectionStart = self.getGlobalIndex((section: indice, row: 0))
+        
+        for i in reverse(globalSectionStart..<globalSectionStart+array[indice].count) {
+          self.removeAtIndex(i)
+        }
+        
+        nestedBonds.removeAtIndex(indice)
+      }
+    }
+    
+    globalBond.willUpdateListener = { [unowned self] array, indices in
+      globalBond.willRemoveListener?(array, indices)
+    }
+    
+    globalBond.didUpdateListener = { [unowned self] array, indices in
+      globalBond.didInsertListener?(array, indices)
+    }
+    
+    globalBond.didResetListener = handleGlobalReset
+    
+  }
+  
+  // get indexPath from global index
+  private func getIndexPath(globalIndex: Int) -> (Int, Int) {
+    precondition(globalIndex > 0, "Global Index must be greater than 0")
+    var count = 0
+    for (index, array) in enumerate(sourceArray) {
+      let subCount = array.count
+      if count + subCount > globalIndex {
+        return (index, globalIndex - count)
+      } else {
+        count += subCount
+      }
+    }
+    preconditionFailure("That Global Index doesn't exist")
+  }
+  
+  // get global index from indexPath
+  
+  private func getGlobalIndex(indexPath:(section: Int, row: Int)) -> Int {
+    precondition(indexPath.section < sourceArray.count, "Section out of bounds")
+    var count = 0
+    
+    for i in 0..<indexPath.section {
+      count += sourceArray[i].count
+    }
+    
+    return count + indexPath.row
+  }
+}
+
+// MARK: Dynamic Array DeliverOn Proxy
 private class DynamicArrayDeliverOnProxy<T>: DynamicArray<T> {
   private unowned var sourceArray: DynamicArray<T>
   private var queue: dispatch_queue_t
@@ -893,6 +1031,15 @@ public extension DynamicArray
   public func filter(f: T -> Bool) -> DynamicArray<T> {
     return _filter(self, f)
   }
+}
+
+// MARK: Flatten
+
+/**
+Note: The returned flattened DynamicArray should not be modified directly.
+*/
+public func flatten<T>(nestedDynamicArray: DynamicArray<DynamicArray<T>>) -> DynamicArray<T> {
+  return DynamicArrayFlattenProxy(nestedSourceArray: nestedDynamicArray)
 }
 
 // MARK: Map
