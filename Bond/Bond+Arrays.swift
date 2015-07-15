@@ -222,8 +222,15 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
     return DynamicArrayGenerator<T>(array: self)
   }
   
+  private var bondsForCurrentInsertion: Set<BondBox<Array<T>>>?
+  private var bondsForCurrentRemoval: Set<BondBox<Array<T>>>?
+  private var bondsForCurrentUpdate: Set<BondBox<Array<T>>>?
+  private var bondsForCurrentReset: Set<BondBox<Array<T>>>?
+  
   private func dispatchWillInsert(indices: [Int]) {
     let firstMutation = mutationCount++ == 0
+    assert(bondsForCurrentInsertion == nil, "dispatchWillInsert: called twice without dispatchDidInsert:")
+    bondsForCurrentInsertion = bonds
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
         if firstMutation {
@@ -239,19 +246,26 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
     if !indices.isEmpty {
       dynCount.value = count
     }
-    for bondBox in bonds {
-      if let arrayBond = bondBox.bond as? ArrayBond {
-        arrayBond.didInsertListener?(self, indices)
-        if lastMutation {
-          arrayBond.didMutateListener?(self)
+    if let bonds = bondsForCurrentInsertion {
+      for bondBox in bonds {
+        if let arrayBond = bondBox.bond as? ArrayBond {
+          arrayBond.didInsertListener?(self, indices)
+          if lastMutation {
+            arrayBond.didMutateListener?(self)
+          }
         }
       }
+    } else {
+      assertionFailure("dispatchDidInsert: without dispatchWillInsert:")
     }
+    bondsForCurrentInsertion = nil
     mutationCount--
   }
   
   private func dispatchWillRemove(indices: [Int]) {
     let firstMutation = mutationCount++ == 0
+    assert(bondsForCurrentRemoval == nil, "dispatchWillRemove: called twice without dispatchDidRemove:")
+    bondsForCurrentRemoval = bonds
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
         if firstMutation {
@@ -267,19 +281,26 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
     if !indices.isEmpty {
       dynCount.value = count
     }
-    for bondBox in bonds {
-      if let arrayBond = bondBox.bond as? ArrayBond {
-        arrayBond.didRemoveListener?(self, indices)
-        if lastMutation {
-          arrayBond.didMutateListener?(self)
+    if let bonds = bondsForCurrentRemoval {
+      for bondBox in bonds {
+        if let arrayBond = bondBox.bond as? ArrayBond {
+          arrayBond.didRemoveListener?(self, indices)
+          if lastMutation {
+            arrayBond.didMutateListener?(self)
+          }
         }
       }
+    } else {
+      assertionFailure("dispatchDidRemove: without dispatchWillRemove:")
     }
+    bondsForCurrentRemoval = nil
     mutationCount--
   }
   
   private func dispatchWillUpdate(indices: [Int]) {
     let firstMutation = mutationCount++ == 0
+    assert(bondsForCurrentRemoval == nil, "dispatchWillUpdate: called twice without dispatchDidUpdate:")
+    bondsForCurrentRemoval = bonds
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
         if firstMutation {
@@ -292,18 +313,25 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
   
   private func dispatchDidUpdate(indices: [Int]) {
     let lastMutation = mutationCount == 1
-    for bondBox in bonds {
-      if let arrayBond = bondBox.bond as? ArrayBond {
-        arrayBond.didUpdateListener?(self, indices)
-        if lastMutation {
-          arrayBond.didMutateListener?(self)
+    if let bonds = bondsForCurrentUpdate {
+      for bondBox in bonds {
+        if let arrayBond = bondBox.bond as? ArrayBond {
+          arrayBond.didUpdateListener?(self, indices)
+          if lastMutation {
+            arrayBond.didMutateListener?(self)
+          }
         }
       }
+    } else {
+      assertionFailure("dispatchDidUpdate: without dispatchWillUpdate:")
     }
+    bondsForCurrentUpdate = nil
     mutationCount--
   }
   
   private func dispatchWillReset() {
+    assert(bondsForCurrentReset == nil, "dispatchWillReset called twice without dispatchDidReset")
+    bondsForCurrentReset = bonds
     for bondBox in bonds {
       if let arrayBond = bondBox.bond as? ArrayBond {
         arrayBond.willResetListener?(self)
@@ -313,11 +341,16 @@ public class DynamicArray<T>: Dynamic<Array<T>>, SequenceType {
   
   private func dispatchDidReset() {
     dynCount.value = self.count
-    for bondBox in bonds {
-      if let arrayBond = bondBox.bond as? ArrayBond {
-        arrayBond.didResetListener?(self)
+    if let bonds = bondsForCurrentReset {
+      for bondBox in bonds {
+        if let arrayBond = bondBox.bond as? ArrayBond {
+          arrayBond.didResetListener?(self)
+        }
       }
+    } else {
+      assertionFailure("dispatchDidReset: without dispatchWillReset:")
     }
+    bondsForCurrentReset = nil
   }
 }
 
