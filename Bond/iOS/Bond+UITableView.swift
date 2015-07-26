@@ -277,18 +277,18 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
     }
     
     self.didResetListener = { [weak self] array in
-      for bond in sectionBonds {
-        bond.unbindAll()
-      }
-      sectionBonds.removeAll(keepCapacity: false)
-      
-      for section in 0..<array.count {
-        let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: self.tableView, section: section, disableAnimation: disableAnimation, shouldReloadRows: shouldReloadRows)
-        let sectionDynamic = array[section]
-        sectionDynamic.bindTo(sectionBond)
-        sectionBonds.append(sectionBond)
-      }
-      if let tableView = self?.tableView {
+      if let strongSelf = self, tableView = strongSelf.tableView {
+        for bond in strongSelf.sectionBonds {
+          bond.unbindAll()
+        }
+        strongSelf.sectionBonds.removeAll(keepCapacity: false)
+        
+        for section in 0..<array.count {
+          let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: tableView, section: section, disableAnimation: disableAnimation, shouldReloadRows: shouldReloadRows)
+          let sectionDynamic = array[section]
+          sectionDynamic.bindTo(sectionBond)
+          strongSelf.sectionBonds.append(sectionBond)
+        }
         tableView.reloadData()
       }
     }
