@@ -217,7 +217,7 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
             tableView.insertSections(NSIndexSet(array: i), withRowAnimation: UITableViewRowAnimation.Automatic)
             
             for section in sorted(i, <) {
-              let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: tableView, section: section, disableAnimation: disableAnimation, shouldReloadRows: self?.shouldReloadRows)
+              let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: tableView, section: section, disableAnimation: disableAnimation, shouldReloadRows: s.shouldReloadRows)
               let sectionDynamic = array[section]
               sectionDynamic.bindTo(sectionBond)
               s.sectionBonds.insert(sectionBond, atIndex: section)
@@ -262,7 +262,7 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
             tableView.reloadSections(NSIndexSet(array: i), withRowAnimation: UITableViewRowAnimation.Automatic)
 
             for section in i {
-              let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: tableView, section: section, disableAnimation: disableAnimation, shouldReloadRows: self?.shouldReloadRows)
+              let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: tableView, section: section, disableAnimation: disableAnimation, shouldReloadRows: s.shouldReloadRows)
               let sectionDynamic = array[section]
               sectionDynamic.bindTo(sectionBond)
               
@@ -284,7 +284,7 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
         strongSelf.sectionBonds.removeAll(keepCapacity: false)
         
         for section in 0..<array.count {
-          let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: tableView, section: section, disableAnimation: disableAnimation, shouldReloadRows: shouldReloadRows)
+          let sectionBond = UITableViewDataSourceSectionBond<Void>(tableView: tableView, section: section, disableAnimation: disableAnimation, shouldReloadRows: strongSelf.shouldReloadRows)
           let sectionDynamic = array[section]
           sectionDynamic.bindTo(sectionBond)
           strongSelf.sectionBonds.append(sectionBond)
