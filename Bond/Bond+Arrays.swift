@@ -356,7 +356,7 @@ public struct DynamicArrayGenerator<T>: GeneratorType {
     self.array = array
   }
   
-  typealias Element = T
+  public typealias Element = T
   
   public mutating func next() -> T? {
     index++
@@ -492,7 +492,7 @@ private class DynamicArrayMapProxy<T, U>: DynamicArray<U> {
 
 func indexOfFirstEqualOrLargerThan(x: Int, array: [Int]) -> Int {
   var idx: Int = -1
-  for (index, element) in enumerate(array) {
+  for (index, element) in array.enumerate() {
     if element < x {
       idx = index
     } else {
@@ -526,7 +526,7 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
       
       for idx in indices {
 
-        for (index, element) in enumerate(pointers) {
+        for (index, element) in pointers.enumerate() {
           if element >= idx {
             pointers[index] = element + 1
           }
@@ -534,7 +534,7 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
         
         let element = array[idx]
         if filterf(element) {
-          let position = indexOfFirstEqualOrLargerThan(idx, pointers)
+          let position = indexOfFirstEqualOrLargerThan(idx, array: pointers)
           pointers.insert(idx, atIndex: position)
           insertedIndices.append(position)
         }
@@ -555,14 +555,14 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
       var removedIndices: [Int] = []
       var pointers = self.pointers
       
-      for idx in reverse(indices) {
+      for idx in Array(indices.reverse()) {
         
-        if let idx = find(pointers, idx) {
+        if let idx = pointers.indexOf(idx) {
           pointers.removeAtIndex(idx)
           removedIndices.append(idx)
         }
         
-        for (index, element) in enumerate(pointers) {
+        for (index, element) in pointers.enumerate() {
           if element >= idx {
             pointers[index] = element - 1
           }
@@ -570,13 +570,13 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
       }
       
       if removedIndices.count > 0 {
-        self.dispatchWillRemove(reverse(removedIndices))
+        self.dispatchWillRemove(Array(removedIndices.reverse()))
       }
       
       self.pointers = pointers
       
       if removedIndices.count > 0 {
-        self.dispatchDidRemove(reverse(removedIndices))
+        self.dispatchDidRemove(Array(removedIndices.reverse()))
       }
     }
     
@@ -590,7 +590,7 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
       var updatedIndices: [Int] = []
       var pointers = self.pointers
       
-      if let idx = find(pointers, idx) {
+      if let idx = pointers.indexOf(idx) {
         if filterf(element) {
           // update
           updatedIndices.append(idx)
@@ -601,7 +601,7 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
         }
       } else {
         if filterf(element) {
-          let position = indexOfFirstEqualOrLargerThan(idx, pointers)
+          let position = indexOfFirstEqualOrLargerThan(idx, array: pointers)
           pointers.insert(idx, atIndex: position)
           insertedIndices.append(position)
         } else {
@@ -648,7 +648,7 @@ private class DynamicArrayFilterProxy<T>: DynamicArray<T> {
   
   class func pointersFromSource(sourceArray: DynamicArray<T>, filterf: T -> Bool) -> [Int] {
     var pointers = [Int]()
-    for (index, element) in enumerate(sourceArray) {
+    for (index, element) in sourceArray.enumerate() {
       if filterf(element) {
         pointers.append(index)
       }
@@ -754,7 +754,7 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
     globalBond.bind(self.sourceArray, fire: false)
     
     let handleInsert = { [unowned self] (array: DynamicArray<DynamicArray<T>>, indices: [Int]) -> Void in
-      for (i, indice) in enumerate(sorted(indices, <)) {
+      for (i, indice) in indices.sort(<).enumerate() {
         let innerArray = array[indice]
         
         let bond = ArrayBond<T>()
@@ -762,7 +762,7 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
         self.nestedBonds.insert(bond, atIndex: indice)
         
         let handleReset = { (subArray: DynamicArray<T>) -> Void in
-          if let globalSectionIndex = find(self.nestedBonds, bond) {
+          if let globalSectionIndex = self.nestedBonds.indexOf(bond) {
             let toSplice = (0..<subArray.count).map { index in subArray[index] }
             let globalRowIndex = self.getGlobalIndex((section: globalSectionIndex, row: 0))
             self.splice(toSplice, atIndex: globalRowIndex)
@@ -774,16 +774,16 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
         handleReset(innerArray)
         
         bond.didInsertListener = { [unowned self] subArray, subIndices in
-          if let globalSectionIndex = find(self.nestedBonds, bond) {
-            let toSplice = sorted(subIndices, <).map { index in subArray[index] }
+          if let globalSectionIndex = self.nestedBonds.indexOf(bond) {
+            let toSplice = subIndices.sort(<).map { index in subArray[index] }
             self.splice(toSplice, atIndex: globalSectionIndex)
           } else {
             assertionFailure("Bond doesn't exist in our internal array.")
           }
         }
         bond.didRemoveListener = { [unowned self] subArray, subIndices in
-          if let globalSectionIndex = find(self.nestedBonds, bond) {
-            for i in sorted(subIndices, >) {
+          if let globalSectionIndex = self.nestedBonds.indexOf(bond) {
+            for i in subIndices.sort(>) {
               self.removeAtIndex(globalSectionIndex + i)
             }
           } else {
@@ -791,7 +791,7 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
           }
         }
         bond.didUpdateListener = { [unowned self] subArray, subIndices in
-          if let globalSectionIndex = find(self.nestedBonds, bond) {
+          if let globalSectionIndex = self.nestedBonds.indexOf(bond) {
             for i in subIndices {
               self[globalSectionIndex + i] = subArray[i]
             }
@@ -800,7 +800,7 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
           }
         }
         bond.willResetListener = { [unowned self] subArray in
-          if let globalSectionIndex = find(self.nestedBonds, bond) {
+          if let globalSectionIndex = self.nestedBonds.indexOf(bond) {
             for i in 0..<subArray.count {
               self.removeAtIndex(globalSectionIndex)
             }
@@ -825,10 +825,10 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
     
     globalBond.willRemoveListener = { [unowned self] array, indices in
       
-      for index in sorted(indices, >) {
+      for index in indices.sort(>) {
         let globalSectionStart = self.getGlobalIndex((section: index, row: 0))
         
-        for i in reverse(globalSectionStart..<globalSectionStart+array[index].count) {
+        for i in Array((globalSectionStart..<globalSectionStart+array[index].count).reverse()) {
           self.removeAtIndex(i)
         }
         
@@ -852,7 +852,7 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
   private func getIndexPath(globalIndex: Int) -> (Int, Int) {
     precondition(globalIndex > 0, "Global Index must be greater than 0")
     var count = 0
-    for (index, array) in enumerate(sourceArray) {
+    for (index, array) in sourceArray.enumerate() {
       let subCount = array.count
       if count + subCount > globalIndex {
         return (index, globalIndex - count)
@@ -1023,16 +1023,16 @@ private class DynamicArrayDeliverOnProxy<T>: DynamicArray<T> {
 public extension DynamicArray
 {
   public func map<U>(f: (T, Int) -> U) -> DynamicArray<U> {
-    return _map(self, f)
+    return _map(self, f: f)
   }
   
   public func map<U>(f: T -> U) -> DynamicArray<U> {
     let mapf = { (o: T, i: Int) -> U in f(o) }
-    return _map(self, mapf)
+    return _map(self, f: mapf)
   }
   
   public func filter(f: T -> Bool) -> DynamicArray<T> {
-    return _filter(self, f)
+    return _filter(self, f: f)
   }
 }
 

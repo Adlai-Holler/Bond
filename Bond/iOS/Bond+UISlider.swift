@@ -27,12 +27,12 @@
 
 import UIKit
 
-@objc class SliderDynamicHelper
-{
+class SliderDynamicHelper: NSObject {
   weak var control: UISlider?
   var listener: (Float -> Void)?
   
   init(control: UISlider) {
+    super.init()
     self.control = control
     control.addTarget(self, action: Selector("valueChanged:"), forControlEvents: .ValueChanged)
   }
@@ -79,7 +79,7 @@ extension UISlider /*: Dynamical, Bondable */ {
       
       d.bindTo(bond, fire: false, strongly: false)
       d.retain(bond)
-      objc_setAssociatedObject(self, &valueDynamicHandleUISlider, d, objc_AssociationPolicy(OBJC_ASSOCIATION_RETAIN_NONATOMIC))
+      objc_setAssociatedObject(self, &valueDynamicHandleUISlider, d, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
       return d
     }
   }

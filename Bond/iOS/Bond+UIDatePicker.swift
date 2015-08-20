@@ -27,12 +27,12 @@
 
 import UIKit
 
-@objc class DatePickerDynamicHelper
-{
+class DatePickerDynamicHelper: NSObject {
   weak var control: UIDatePicker?
   var listener: (NSDate -> Void)?
   
   init(control: UIDatePicker) {
+    super.init()
     self.control = control
     control.addTarget(self, action: Selector("valueChanged:"), forControlEvents: .ValueChanged)
   }
@@ -78,7 +78,7 @@ extension UIDatePicker /*: Dynamical, Bondable */ {
       
       d.bindTo(bond, fire: false, strongly: false)
       d.retain(bond)
-      objc_setAssociatedObject(self, &dateDynamicHandleUIDatePicker, d, objc_AssociationPolicy(OBJC_ASSOCIATION_RETAIN_NONATOMIC))
+      objc_setAssociatedObject(self, &dateDynamicHandleUIDatePicker, d, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
       return d
     }
   }

@@ -69,7 +69,7 @@ private class UICollectionViewDataSourceSectionBond<T>: ArrayBond<UICollectionVi
     
     self.didUpdateListener = { [unowned self] a, i in
       if let collectionView = self.collectionView {
-        var indexPaths = i.map { NSIndexPath(forItem: $0, inSection: self.section)! }
+        var indexPaths = i.map { NSIndexPath(forItem: $0, inSection: self.section) }
         if let shouldReloadItems = self.shouldReloadItems {
           indexPaths = shouldReloadItems(collectionView, indexPaths)
         }
@@ -127,7 +127,7 @@ public class UICollectionViewDataSourceBond<T>: ArrayBond<DynamicArray<UICollect
             collectionView.insertSections(NSIndexSet(array: i))
             }, completion: nil)
           
-          for section in sorted(i, <) {
+          for section in i.sort(<) {
             let sectionBond = UICollectionViewDataSourceSectionBond<Void>(collectionView: collectionView, section: section, shouldReloadItems: shouldReloadItems)
             let sectionDynamic = array[section]
             sectionDynamic.bindTo(sectionBond)
@@ -148,7 +148,7 @@ public class UICollectionViewDataSourceBond<T>: ArrayBond<DynamicArray<UICollect
             collectionView.deleteSections(NSIndexSet(array: i))
             }, completion: nil)
           
-          for section in sorted(i, >) {
+          for section in i.sort(>) {
             s.sectionBonds[section].unbindAll()
             s.sectionBonds.removeAtIndex(section)
             
@@ -222,7 +222,7 @@ extension UICollectionView /*: Bondable */ {
       return (d as? UICollectionViewDataSourceBond<UICollectionViewCell>)!
     } else {
       let bond = UICollectionViewDataSourceBond<UICollectionViewCell>(collectionView: self)
-      objc_setAssociatedObject(self, &bondDynamicHandleUICollectionView, bond, objc_AssociationPolicy(OBJC_ASSOCIATION_RETAIN_NONATOMIC))
+      objc_setAssociatedObject(self, &bondDynamicHandleUICollectionView, bond, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
       return bond
     }
   }

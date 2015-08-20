@@ -27,12 +27,12 @@
 
 import UIKit
 
-@objc class TextFieldDynamicHelper
-{
+class TextFieldDynamicHelper: NSObject {
   weak var control: UITextField?
   var listener: (String -> Void)?
   
   init(control: UITextField) {
+    super.init()
     self.control = control
     control.addTarget(self, action: Selector("editingChanged:"), forControlEvents: .EditingChanged)
   }
@@ -78,7 +78,7 @@ extension UITextField /*: Dynamical, Bondable */ {
       }
       d.bindTo(bond, fire: false, strongly: false)
       d.retain(bond)
-      objc_setAssociatedObject(self, &textDynamicHandleUITextField, d, objc_AssociationPolicy(OBJC_ASSOCIATION_RETAIN_NONATOMIC))
+      objc_setAssociatedObject(self, &textDynamicHandleUITextField, d, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
       return d
     }
   }
@@ -91,7 +91,7 @@ extension UITextField /*: Dynamical, Bondable */ {
       let bond = Bond<Bool>() { [weak self] v in if let s = self { s.enabled = v } }
       d.bindTo(bond, fire: false, strongly: false)
       d.retain(bond)
-      objc_setAssociatedObject(self, &enabledDynamicHandleUITextField, d, objc_AssociationPolicy(OBJC_ASSOCIATION_RETAIN_NONATOMIC))
+      objc_setAssociatedObject(self, &enabledDynamicHandleUITextField, d, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
       return d
     }
   }
