@@ -134,9 +134,7 @@ private class UITableViewDataSourceSectionBond<T>: ArrayBond<UITableViewCell> {
     self.didInsertListener = { [unowned self] a, i in
       if let tableView: UITableView = self.tableView {
         perform(animated: !disableAnimation) {
-          tableView.beginUpdates()
           tableView.insertRowsAtIndexPaths(i.map { NSIndexPath(forItem: $0, inSection: self.section) }, withRowAnimation: UITableViewRowAnimation.Automatic)
-          tableView.endUpdates()
         }
       }
     }
@@ -144,9 +142,7 @@ private class UITableViewDataSourceSectionBond<T>: ArrayBond<UITableViewCell> {
     self.didRemoveListener = { [unowned self] a, i in
       if let tableView = self.tableView {
         perform(animated: !disableAnimation) {
-          tableView.beginUpdates()
           tableView.deleteRowsAtIndexPaths(i.map { NSIndexPath(forItem: $0, inSection: self.section) }, withRowAnimation: UITableViewRowAnimation.Automatic)
-          tableView.endUpdates()
         }
       }
     }
@@ -159,9 +155,7 @@ private class UITableViewDataSourceSectionBond<T>: ArrayBond<UITableViewCell> {
             indexPaths = shouldReloadRows(tableView, indexPaths)
           }
           if !indexPaths.isEmpty {
-            tableView.beginUpdates()
             tableView.reloadRowsAtIndexPaths(indexPaths, withRowAnimation: UITableViewRowAnimation.Automatic)
-            tableView.endUpdates()
           }
         }
       }
@@ -213,7 +207,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
       if let s = self {
         if let tableView: UITableView = self?.tableView {
           perform(animated: !disableAnimation) {
-            tableView.beginUpdates()
             tableView.insertSections(NSIndexSet(array: i), withRowAnimation: UITableViewRowAnimation.Automatic)
             
             for section in i.sort(<) {
@@ -227,7 +220,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
               }
             }
             
-            tableView.endUpdates()
           }
         }
       }
@@ -237,7 +229,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
       if let s = self {
         if let tableView = s.tableView {
           perform(animated: !disableAnimation) {
-            tableView.beginUpdates()
             tableView.deleteSections(NSIndexSet(array: i), withRowAnimation: UITableViewRowAnimation.Automatic)
             for section in i.sort(>) {
               s.sectionBonds[section].unbindAll()
@@ -248,7 +239,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
               }
             }
             
-            tableView.endUpdates()
           }
         }
       }
@@ -258,7 +248,6 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
       if let s = self {
         if let tableView = s.tableView {
           perform(animated: !disableAnimation) {
-            tableView.beginUpdates()
             tableView.reloadSections(NSIndexSet(array: i), withRowAnimation: UITableViewRowAnimation.Automatic)
 
             for section in i {
@@ -270,7 +259,7 @@ public class UITableViewDataSourceBond<T>: ArrayBond<DynamicArray<UITableViewCel
               self?.sectionBonds[section] = sectionBond
             }
             
-            tableView.endUpdates()
+
           }
         }
       }
