@@ -13,7 +13,7 @@ import Bond
 class UITextViewTests: XCTestCase {
 
   func testUITextViewDynamic() {
-    var dynamicDriver = Dynamic<String>("b")
+    let dynamicDriver = Dynamic<String>("b")
     let textView = UITextView()
     
     textView.text = "a"
@@ -32,7 +32,7 @@ class UITextViewTests: XCTestCase {
   }
   
   func testUITextViewAttributedDynamic() {
-    var dynamicDriver = Dynamic<NSAttributedString>(NSAttributedString(string: "b"))
+    let dynamicDriver = Dynamic<NSAttributedString>(NSAttributedString(string: "b"))
     let textView = UITextView()
     
     textView.attributedText = NSAttributedString(string: "a")
