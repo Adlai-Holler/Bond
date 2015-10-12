@@ -754,7 +754,7 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
     globalBond.bind(self.sourceArray, fire: false)
     
     let handleInsert = { [unowned self] (array: DynamicArray<DynamicArray<T>>, indices: [Int]) -> Void in
-      for (i, indice) in indices.sort(<).enumerate() {
+      for (_, indice) in indices.sort(<).enumerate() {
         let innerArray = array[indice]
         
         let bond = ArrayBond<T>()
@@ -801,7 +801,7 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
         }
         bond.willResetListener = { [unowned self] subArray in
           if let globalSectionIndex = self.nestedBonds.indexOf(bond) {
-            for i in 0..<subArray.count {
+            for _ in 0..<subArray.count {
               self.removeAtIndex(globalSectionIndex)
             }
           } else {
@@ -836,11 +836,11 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
       }
     }
     
-    globalBond.willUpdateListener = { [unowned self] array, indices in
+    globalBond.willUpdateListener = { array, indices in
       globalBond.willRemoveListener?(array, indices)
     }
     
-    globalBond.didUpdateListener = { [unowned self] array, indices in
+    globalBond.didUpdateListener = { array, indices in
       globalBond.didInsertListener?(array, indices)
     }
     

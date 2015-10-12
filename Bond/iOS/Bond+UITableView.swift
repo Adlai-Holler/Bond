@@ -92,7 +92,7 @@ extension NSIndexSet {
     }
   }
   
-  func sectionIndexTitlesForTableView(tableView: UITableView) -> [String]! {
+  func sectionIndexTitlesForTableView(tableView: UITableView) -> [String]? {
     if let ds = self.nextDataSource {
       return ds.sectionIndexTitlesForTableView?(tableView) ?? []
     } else {
