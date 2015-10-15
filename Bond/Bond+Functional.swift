@@ -208,7 +208,7 @@ public func any<T>(dynamics: [Dynamic<T>]) -> Dynamic<T> {
   let dyn = InternalDynamic<T>()
   
   for dynamic in dynamics {
-    let bond = Bond<T> { [unowned dynamic] in
+    let bond = Bond<T> {
       dyn.value = $0
     }
     dynamic.bindTo(bond, fire: false)

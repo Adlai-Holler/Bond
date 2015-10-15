@@ -13,7 +13,7 @@ import Bond
 class UITextFieldTests: XCTestCase {
 
   func testUITextFieldDynamic() {
-    var dynamicDriver = Dynamic<String>("b")
+    let dynamicDriver = Dynamic<String>("b")
     let textField = UITextField()
     
     textField.text = "a"
@@ -32,7 +32,7 @@ class UITextFieldTests: XCTestCase {
   }
     
   func testUITextFieldEnabledBond() {
-    var dynamicDriver = Dynamic<Bool>(false)
+    let dynamicDriver = Dynamic<Bool>(false)
     let textField = UITextField()
 
     textField.enabled = true
