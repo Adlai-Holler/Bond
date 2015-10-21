@@ -836,12 +836,12 @@ private class DynamicArrayFlattenProxy<T>: DynamicArray<T> {
       }
     }
     
-    globalBond.willUpdateListener = { array, indices in
-      globalBond.willRemoveListener?(array, indices)
+    globalBond.willUpdateListener = { [weak self] array, indices in
+      self?.globalBond.willRemoveListener?(array, indices)
     }
     
-    globalBond.didUpdateListener = { array, indices in
-      globalBond.didInsertListener?(array, indices)
+    globalBond.didUpdateListener = { [weak self] array, indices in
+      self?.globalBond.didInsertListener?(array, indices)
     }
     
     globalBond.didResetListener = handleGlobalReset
